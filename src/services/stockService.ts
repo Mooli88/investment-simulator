@@ -1,63 +1,37 @@
 import historicalData from './data.json';
 
-interface MonthlyTimeSeriesData {
-  chart: {
-    result: Array<{
-      meta: {
-        currency: string;
-        symbol: string;
-        // ... other meta fields
-      };
-      timestamp: number[];
-      indicators: {
-        quote: Array<{
-          close: number[];
-        }>;
-      };
-    }>;
-    error: null;
-  };
+interface YearlyDataPoint {
+  year: number
+  value: number
+  cumulativeInvestment: number
+  monthlyInvestment: number
 }
 
-export async function fetchNasdaqData(years: number) {
-  try {
-    const data = historicalData as MonthlyTimeSeriesData;
-    const timestamps = data.chart.result[0].timestamp;
-    const prices = data.chart.result[0].indicators.quote[0].close;
+export function getHistoricalReturns(
+  years: number,
+  monthlyTopUp: number
+): YearlyDataPoint[] {
+  const data = historicalData.chart.result[0]
+  const prices = data.indicators.quote[0].close
+  const timestamps = data.timestamp
 
-    // Reverse arrays to get chronological order (oldest to newest)
-    const timeArray = [...timestamps].reverse();
-    const priceArray = [...prices].reverse();
+  let yearlyData: YearlyDataPoint[] = []
+  let currentIndex = prices.length - 1
+  const latestTimestamp = timestamps[currentIndex]
+  const yearInSeconds = 365 * 24 * 60 * 60
 
-    // Calculate monthly returns from the historical data
-    const monthlyReturns = priceArray.map((price, index) => {
-      if (index === 0) {
-        return {
-          date: new Date(timeArray[index] * 1000).toISOString(),
-          return: 0
-        };
-      }
-      
-      const currentPrice = price;
-      const previousPrice = priceArray[index - 1];
-      const monthlyReturn = (currentPrice - previousPrice) / previousPrice;
-
-      return {
-        date: new Date(timeArray[index] * 1000).toISOString(),
-        return: monthlyReturn
-      };
-    });
-
-    // Filter for requested number of years
-    const cutoffDate = new Date();
-    cutoffDate.setFullYear(cutoffDate.getFullYear() - years);
-    
-    return monthlyReturns.filter(item => 
-      new Date(item.date) >= cutoffDate
-    );
-
-  } catch (error) {
-    console.error('Error processing NASDAQ data:', error);
-    throw error;
+  for (let year = 0; year <= years; year++) {
+    const targetTimestamp = latestTimestamp - year * yearInSeconds
+    while (currentIndex > 0 && timestamps[currentIndex] > targetTimestamp) {
+      currentIndex--
+    }
+    yearlyData.unshift({
+      year: years - year,
+      value: prices[currentIndex],
+      cumulativeInvestment: monthlyTopUp * 12 * year,
+      monthlyInvestment: monthlyTopUp,
+    })
   }
+
+  return yearlyData
 } 
