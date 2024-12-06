@@ -41,8 +41,10 @@ export const InvestmentChart: React.FC<InvestmentChartProps> = ({
           margin={{ top: 20, right: 30, left: 20, bottom: 5 }}
         >
           <CartesianGrid
-            strokeDasharray='3 3'
+            strokeDasharray='0'
             stroke={isDarkMode ? '#374151' : '#e5e7eb'}
+            horizontal
+            vertical={false}
           />
           <XAxis
             dataKey='year'
@@ -74,7 +76,8 @@ export const InvestmentChart: React.FC<InvestmentChartProps> = ({
             label={{
               value: 'Total Balance (£)',
               angle: -90,
-              position: 'insideLeft',
+              position: 'left',
+              offset: 15,
               fill: isDarkMode ? '#9CA3AF' : '#4B5563',
             }}
             stroke={isDarkMode ? '#9CA3AF' : '#4B5563'}
