@@ -1,5 +1,8 @@
 import { useState, useEffect } from 'react'
-import { generateLossProbability } from '../utils/probabilityUtils'
+import {
+  generateMarketConditions,
+  MarketConditions,
+} from '../utils/probabilityUtils'
 import { getHistoricalReturns } from '../services/stockService'
 
 interface InvestmentParams {
@@ -8,35 +11,45 @@ interface InvestmentParams {
   savingsRate: number
   stockMarketRate: number
   inflationRate: number
-  volatilityFactor: number
+  marketStatus: number
   monthlyTopUp: number
 }
 
 export function useInvestmentCalculator(params: InvestmentParams) {
-  const [results, setResults] = useState(() => generateData(params))
+  const [marketConditions, setMarketConditions] = useState<MarketConditions>(
+    () => generateMarketConditions(params.marketStatus)
+  )
+
+  useEffect(() => {
+    setMarketConditions(generateMarketConditions(params.marketStatus))
+  }, [params.marketStatus])
+
+  const [results, setResults] = useState(() =>
+    generateData(params, marketConditions)
+  )
 
   useEffect(() => {
     const timeoutId = setTimeout(() => {
-      setResults(generateData(params))
+      setResults(generateData(params, marketConditions))
     }, 500)
 
     return () => clearTimeout(timeoutId)
-  }, [params])
+  }, [params, marketConditions])
 
   return results
 }
 
-function generateData(params: InvestmentParams) {
+function generateData(
+  params: InvestmentParams,
+  marketConditions: MarketConditions
+) {
   const {
     initialInvestment,
     investmentYears,
     savingsRate,
     inflationRate,
-    volatilityFactor,
     monthlyTopUp,
   } = params
-
-  const lossProbabilities = generateLossProbability(volatilityFactor)
 
   let savingsBalance = initialInvestment
   let nasdaqBalance = initialInvestment
@@ -69,13 +82,31 @@ function generateData(params: InvestmentParams) {
     savingsBalance *= Math.pow(1 + savingsRate / 100 / 12, 1) / inflationFactor
 
     let nasdaqMonthlyRate = params.stockMarketRate / 100 / 12
-    Object.values(lossProbabilities).forEach((event) => {
-      if (Math.random() < event.probability) {
-        if (month % (event.duration * 2) < event.duration) {
-          nasdaqMonthlyRate *= event.severity
-        }
+
+    // Increase base volatility range significantly
+    nasdaqMonthlyRate *= 0.9 + 0.2 * Math.random()
+
+    // Apply market conditions with stronger cumulative effects
+    let monthlyMultiplier = 1
+    Object.values(marketConditions).forEach((condition) => {
+      // Remove the duration check to allow more frequent changes
+      if (Math.random() < condition.probability) {
+        monthlyMultiplier *= condition.severity
       }
     })
+
+    // Apply the cumulative effect to the monthly rate
+    nasdaqMonthlyRate *= monthlyMultiplier
+
+    // Increase random noise significantly
+    nasdaqMonthlyRate += (Math.random() - 0.5) * 0.05
+
+    // Add occasional sharp movements
+    if (Math.random() < 0.15) {
+      // 15% chance of sharp movement
+      nasdaqMonthlyRate *= 0.85 + 0.3 * Math.random() // Can move 85%-115% of current rate
+    }
+
     nasdaqBalance *= Math.pow(1 + nasdaqMonthlyRate, 1) / inflationFactor
 
     if (month % 12 === 11 || month === investmentYears * 12 - 1) {

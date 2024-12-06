@@ -11,7 +11,7 @@ const AdvancedInvestmentSimulation = () => {
     savingsRate: 5,
     stockMarketRate: 10,
     inflationRate: 2,
-    volatilityFactor: 1,
+    marketStatus: 50,
     monthlyTopUp: 100,
   })
 
